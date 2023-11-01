@@ -8,7 +8,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asComposeImageBitmap
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import org.jetbrains.skiko.toBitmap
@@ -18,11 +18,11 @@ import javax.imageio.ImageIO
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
-fun PuzzleGame() {
+fun PuzzleGame(filePath: String="src/main/resources/1.jpg") {
     var difficulty by remember { mutableStateOf(9) }
-    val image: BufferedImage = ImageIO.read(File("src/main/resources/image/1.jpg"))
+    val image: BufferedImage = ImageIO.read(File(filePath))
     var isTimerRunning by remember { mutableStateOf(false) }
-    var remainingTime by remember { mutableStateOf(5) }
+    var remainingTime by remember { mutableStateOf(60) }
     var isPuzzleComplete by remember { mutableStateOf(false) }
     var isPuzzleEnd by remember { mutableStateOf(false) }
 
@@ -44,7 +44,11 @@ fun PuzzleGame() {
         if (isTimerRunning) {
             PuzzleBoard(image, difficulty, onPuzzleCompleted = { isPuzzleComplete = true })
         } else {
-            Image(painter = painterResource("image/1.jpg"), contentDescription = null, modifier = Modifier.size(350.dp))
+            Image(
+                bitmap = ImageIO.read(File(filePath)).toComposeImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier.size(350.dp)
+            )
         }
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -57,8 +61,8 @@ fun PuzzleGame() {
             }
         }
 
-        Button(onClick = { isTimerRunning = true }) {
-            Text("开始游戏")
+        Button(onClick = { isTimerRunning = !isTimerRunning }) {
+            Text(if (isTimerRunning) "结束游戏" else "开始游戏")
         }
 
         if (isPuzzleComplete) {
