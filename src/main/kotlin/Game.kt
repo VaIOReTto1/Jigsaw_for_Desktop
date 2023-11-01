@@ -1,4 +1,3 @@
-
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -9,6 +8,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asComposeImageBitmap
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import org.jetbrains.skiko.toBitmap
@@ -16,14 +16,15 @@ import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun PuzzleGame() {
-    //val scope = rememberCoroutineScope()
-    var difficulty by remember { mutableStateOf(16) }
+    var difficulty by remember { mutableStateOf(9) }
     val image: BufferedImage = ImageIO.read(File("src/main/resources/image/1.jpg"))
     var isTimerRunning by remember { mutableStateOf(false) }
-    var remainingTime by remember { mutableStateOf(60) }
-    val piece= remember { mutableStateOf(difficulty) }
+    var remainingTime by remember { mutableStateOf(5) }
+    var isPuzzleComplete by remember { mutableStateOf(false) }
+    var isPuzzleEnd by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -40,7 +41,11 @@ fun PuzzleGame() {
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        PuzzleBoard(image, piece.value)
+        if (isTimerRunning) {
+            PuzzleBoard(image, difficulty, onPuzzleCompleted = { isPuzzleComplete = true })
+        } else {
+            Image(painter = painterResource("image/1.jpg"), contentDescription = null, modifier = Modifier.size(350.dp))
+        }
 
         Spacer(modifier = Modifier.height(32.dp))
 
@@ -48,11 +53,56 @@ fun PuzzleGame() {
         if (isTimerRunning) {
             Timer(remainingTime) {
                 remainingTime = it
+                if (it == 0) isPuzzleEnd = true
             }
         }
 
         Button(onClick = { isTimerRunning = true }) {
             Text("开始游戏")
+        }
+
+        if (isPuzzleComplete) {
+            AlertDialog(
+                modifier = Modifier.width(300.dp).height(150.dp),
+                onDismissRequest = {},
+                title = {
+                    Text("恭喜！")
+                },
+                text = {
+                    Text("游戏胜利！")
+                },
+                confirmButton = {
+                    Button(onClick = {
+                        isPuzzleComplete = false // 关闭对话框
+                        isTimerRunning = false // 停止计时器
+                        remainingTime = 60 // 重置计时器
+                    }) {
+                        Text("确定")
+                    }
+                }
+            )
+        }
+
+        if (isPuzzleEnd) {
+            AlertDialog(
+                modifier = Modifier.width(300.dp).height(150.dp),
+                onDismissRequest = {},
+                title = {
+                    Text("很遗憾")
+                },
+                text = {
+                    Text("挑战失败")
+                },
+                confirmButton = {
+                    Button(onClick = {
+                        isPuzzleEnd = false // 关闭对话框
+                        isTimerRunning = false // 停止计时器
+                        remainingTime = 60 // 重置计时器
+                    }) {
+                        Text("确定")
+                    }
+                }
+            )
         }
     }
 }
@@ -62,7 +112,7 @@ fun DifficultyButton(label: String, value: Int, current: Int, onClick: () -> Uni
     Button(
         onClick = onClick,
         colors = ButtonDefaults.buttonColors(
-            backgroundColor = if (current == value) Color.Gray else Color.Gray
+            backgroundColor = if (current == value) Color.LightGray else Color.Gray
         )
     ) {
         Text(label)
@@ -70,12 +120,10 @@ fun DifficultyButton(label: String, value: Int, current: Int, onClick: () -> Uni
 }
 
 @Composable
-fun PuzzleBoard(image: BufferedImage, difficulty: Int) {
+fun PuzzleBoard(image: BufferedImage, difficulty: Int, onPuzzleCompleted: () -> Unit) {
     val piecesInRow = kotlin.math.sqrt(difficulty.toDouble()).toInt()
     val pieceWidth = image.width / piecesInRow
     val pieceHeight = image.height / piecesInRow
-
-    println(piecesInRow)
 
     val puzzleState by remember { mutableStateOf(PuzzleState(difficulty)) }
     var selectedPieceIndex by remember { mutableStateOf(-1) }
@@ -113,12 +161,15 @@ fun PuzzleBoard(image: BufferedImage, difficulty: Int) {
                 }
             }
         }
+        if (checkPuzzleComplete(puzzleState, difficulty)) {
+            onPuzzleCompleted()
+        }
     }
 }
 
 @Composable
 fun Timer(time: Int, onTimeUpdated: (Int) -> Unit) {
-    var newTime=time
+    var newTime = time
     val updatedTime = rememberUpdatedState(newTime)
 
     LaunchedEffect(key1 = time) {
@@ -145,4 +196,14 @@ class PuzzleState(difficulty: Int) {
         pieces[firstIndex] = pieces[secondIndex]
         pieces[secondIndex] = temp
     }
+}
+
+fun checkPuzzleComplete(puzzleState: PuzzleState, difficulty: Int): Boolean {
+    for (i in 0 until difficulty) {
+        println(puzzleState.getPieceIndexAt(i % difficulty, i / difficulty))
+        if (puzzleState.getPieceIndexAt(i % difficulty, i / difficulty) != i) {
+            return false
+        }
+    }
+    return true
 }
