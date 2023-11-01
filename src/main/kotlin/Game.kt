@@ -11,25 +11,27 @@ import androidx.compose.ui.graphics.asComposeImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.jetbrains.skiko.toBitmap
 import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
 
-@OptIn(ExperimentalMaterialApi::class)
 @Composable
-fun PuzzleGame(filePath: String="src/main/resources/1.jpg") {
-    var difficulty by remember { mutableStateOf(9) }
-    val image: BufferedImage = ImageIO.read(File(filePath))
-    var isTimerRunning by remember { mutableStateOf(false) }
-    var remainingTime by remember { mutableStateOf(60) }
-    var isPuzzleComplete by remember { mutableStateOf(false) }
-    var isPuzzleEnd by remember { mutableStateOf(false) }
+fun PuzzleGame(filePath: String = "src/main/resources/1.jpg") {
+
+    var difficulty by remember { mutableStateOf(9) } //难度选择
+    val image: BufferedImage = ImageIO.read(File(filePath)) //拼图图片
+    var isTimerRunning by remember { mutableStateOf(false) } //计时开始
+    var remainingTime by remember { mutableStateOf(60) } //计时时间
+    var isPuzzleComplete by remember { mutableStateOf(false) } //游戏成功
+    var isPuzzleEnd by remember { mutableStateOf(false) } //游戏失败
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+
         // 选择难度
         Row {
             DifficultyButton("普通", 9, difficulty) { difficulty = 9 }
@@ -41,9 +43,11 @@ fun PuzzleGame(filePath: String="src/main/resources/1.jpg") {
 
         Spacer(modifier = Modifier.height(32.dp))
 
+        //拼图游戏
         if (isTimerRunning) {
             PuzzleBoard(image, difficulty, onPuzzleCompleted = { isPuzzleComplete = true })
         } else {
+            //预览图片
             Image(
                 bitmap = ImageIO.read(File(filePath)).toComposeImageBitmap(),
                 contentDescription = null,
@@ -65,52 +69,42 @@ fun PuzzleGame(filePath: String="src/main/resources/1.jpg") {
             Text(if (isTimerRunning) "结束游戏" else "开始游戏")
         }
 
+        //游戏成功
         if (isPuzzleComplete) {
-            AlertDialog(
-                modifier = Modifier.width(300.dp).height(150.dp),
-                onDismissRequest = {},
-                title = {
-                    Text("恭喜！")
-                },
-                text = {
-                    Text("游戏胜利！")
-                },
-                confirmButton = {
-                    Button(onClick = {
-                        isPuzzleComplete = false // 关闭对话框
-                        isTimerRunning = false // 停止计时器
-                        remainingTime = 60 // 重置计时器
-                    }) {
-                        Text("确定")
-                    }
-                }
-            )
+            GameAlertDialog(title = "恭喜！", text = "游戏胜利！") {
+                isPuzzleComplete = false
+                isTimerRunning = false
+                remainingTime = 60
+            }
         }
 
+        //游戏失败
         if (isPuzzleEnd) {
-            AlertDialog(
-                modifier = Modifier.width(300.dp).height(150.dp),
-                onDismissRequest = {},
-                title = {
-                    Text("很遗憾")
-                },
-                text = {
-                    Text("挑战失败")
-                },
-                confirmButton = {
-                    Button(onClick = {
-                        isPuzzleEnd = false // 关闭对话框
-                        isTimerRunning = false // 停止计时器
-                        remainingTime = 60 // 重置计时器
-                    }) {
-                        Text("确定")
-                    }
-                }
-            )
+            GameAlertDialog(title = "很遗憾", text = "挑战失败") {
+                isPuzzleEnd = false
+                isTimerRunning = false
+                remainingTime = 60
+            }
         }
     }
 }
 
+@OptIn(ExperimentalMaterialApi::class)
+@Composable
+fun GameAlertDialog(title: String, text: String, onConfirm: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = {},
+        title = { Text(title) },
+        text = { Text(text) },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text("确定")
+            }
+        }
+    )
+}
+
+//难度选择按钮
 @Composable
 fun DifficultyButton(label: String, value: Int, current: Int, onClick: () -> Unit) {
     Button(
@@ -123,14 +117,15 @@ fun DifficultyButton(label: String, value: Int, current: Int, onClick: () -> Uni
     }
 }
 
+//拼图游戏生成
 @Composable
 fun PuzzleBoard(image: BufferedImage, difficulty: Int, onPuzzleCompleted: () -> Unit) {
     val piecesInRow = kotlin.math.sqrt(difficulty.toDouble()).toInt()
     val pieceWidth = image.width / piecesInRow
     val pieceHeight = image.height / piecesInRow
 
-    val puzzleState by remember { mutableStateOf(PuzzleState(difficulty)) }
-    var selectedPieceIndex by remember { mutableStateOf(-1) }
+    val puzzleState by remember { mutableStateOf(PuzzleState(difficulty)) } //拼图片段
+    var selectedPieceIndex by remember { mutableStateOf(-1) } //拼图选择
 
     // 创建拼图片段
     val pieces = List(difficulty) { index ->
@@ -141,6 +136,7 @@ fun PuzzleBoard(image: BufferedImage, difficulty: Int, onPuzzleCompleted: () -> 
 
     Box(modifier = Modifier.background(Color.LightGray)) {
         Column {
+            //生成拼图
             for (y in 0 until piecesInRow) {
                 Row {
                     for (x in 0 until piecesInRow) {
@@ -165,28 +161,34 @@ fun PuzzleBoard(image: BufferedImage, difficulty: Int, onPuzzleCompleted: () -> 
                 }
             }
         }
+        //判断是否成功
         if (checkPuzzleComplete(puzzleState, difficulty)) {
             onPuzzleCompleted()
         }
     }
 }
 
+//计时器
 @Composable
 fun Timer(time: Int, onTimeUpdated: (Int) -> Unit) {
-    var newTime = time
-    val updatedTime = rememberUpdatedState(newTime)
-
-    LaunchedEffect(key1 = time) {
-        while (updatedTime.value > 0) {
+    val coroutineScope = rememberCoroutineScope()
+    val countDownTime = produceState(initialValue = time, producer = {
+        while (value > 0) {
             delay(1000)
-            newTime--
-            onTimeUpdated(newTime)
+            value--
+        }
+    })
+    DisposableEffect(Unit) {
+        onDispose {
+            coroutineScope.launch {
+                onTimeUpdated(countDownTime.value)
+            }
         }
     }
-
-    Text(text = "剩余时间：${updatedTime.value}秒")
+    Text(text = "剩余时间：${countDownTime.value}秒")
 }
 
+//分割图片
 class PuzzleState(difficulty: Int) {
     private val piecesInRow = kotlin.math.sqrt(difficulty.toDouble()).toInt()
     private val pieces = List(difficulty) { it }.shuffled().toMutableList()
@@ -202,6 +204,7 @@ class PuzzleState(difficulty: Int) {
     }
 }
 
+//判断游戏是否成功
 fun checkPuzzleComplete(puzzleState: PuzzleState, difficulty: Int): Boolean {
     for (i in 0 until difficulty) {
         println(puzzleState.getPieceIndexAt(i % difficulty, i / difficulty))
