@@ -1,18 +1,21 @@
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.Button
-import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
-import javax.swing.JFileChooser
-import javax.swing.filechooser.FileNameExtensionFilter
 
 @Composable
 fun App() {
@@ -22,54 +25,53 @@ fun App() {
     MaterialTheme {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(16.dp),
-
-            ) {
+            modifier = Modifier.padding(16.dp)
+        ) {
             if (isGameRunning) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(onClick = {
-                    isGameRunning = false
-                    println(imagePath)
-                }, colors = ButtonDefaults.buttonColors(Color(0xff708090))) {
+                Button(onClick = { isGameRunning = false }) {
                     Text("切换图片")
                 }
-                Spacer(modifier = Modifier.height(16.dp))
                 PuzzleGame(imagePath)
-            } else {
                 Spacer(modifier = Modifier.height(16.dp))
-                Button(
-                    onClick = {
-                        val selectedImagePath = openImageFileChooser()
-                        if (selectedImagePath.isNotEmpty()) {
-                            imagePath = selectedImagePath
-                            isGameRunning = true
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(Color(0xff708090)),
-                    modifier = Modifier.padding(start = 190.dp, end = 100.dp)) {
-                        Text("开始游戏")
-                    }
+            } else {
+                TextEntry(onTextEntered = { imagePath = it })
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(onClick = { if (imagePath.isNotEmpty()) isGameRunning = true }) {
+                    Text("开始游戏")
+                }
             }
         }
     }
 }
 
-fun openImageFileChooser(): String {
-    val fileChooser = JFileChooser().apply {
-        fileSelectionMode = JFileChooser.FILES_ONLY
-        fileFilter = FileNameExtensionFilter("Image Files", "jpg", "jpeg", "png", "bmp")
-    }
-    val result = fileChooser.showOpenDialog(null)
-    return if (result == JFileChooser.APPROVE_OPTION) {
-        fileChooser.selectedFile.absolutePath
-    } else ""
+@Composable
+fun TextEntry(onTextEntered: (String) -> Unit) {
+    var text by remember { mutableStateOf("") }
+
+    BasicTextField(
+        value = text,
+        onValueChange = {
+            text = it
+            onTextEntered(it)
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(2.dp, Color.Gray, RoundedCornerShape(4.dp))
+            .padding(8.dp),
+        textStyle = TextStyle(
+            color = Color.Black,
+            fontSize = 18.sp,
+            textAlign = TextAlign.Start
+        ),
+        singleLine = true
+    )
 }
 
 fun main() = application {
     Window(
         onCloseRequest = ::exitApplication,
         title = "拼图游戏",
-        state = rememberWindowState(width = 550.dp, height = 785.dp)
+        state = rememberWindowState(width = 500.dp, height = 650.dp)
     ) {
         App()
     }
