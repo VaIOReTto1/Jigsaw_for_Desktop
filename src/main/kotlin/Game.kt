@@ -1,34 +1,34 @@
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asComposeImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.jetbrains.skiko.toBitmap
 import java.awt.image.BufferedImage
-import java.io.File
-import javax.imageio.ImageIO
+import kotlin.math.roundToInt
 
 @Composable
-fun PuzzleGame(filePath: String = "src/main/resources/1.jpg") {
-
+fun PuzzleGame(image: BufferedImage) {
     var difficulty by remember { mutableStateOf(9) } //难度选择
-    val image: BufferedImage = ImageIO.read(File(filePath)) //拼图图片
     var isTimerRunning by remember { mutableStateOf(false) } //计时开始
     var remainingTime by remember { mutableStateOf(60) } //计时时间
     var isPuzzleComplete by remember { mutableStateOf(false) } //游戏成功
     var isPuzzleEnd by remember { mutableStateOf(false) } //游戏失败
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier.width(350.dp).padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
@@ -49,7 +49,7 @@ fun PuzzleGame(filePath: String = "src/main/resources/1.jpg") {
         } else {
             //预览图片
             Image(
-                bitmap = ImageIO.read(File(filePath)).toComposeImageBitmap(),
+                bitmap = image.toComposeImageBitmap(),
                 contentDescription = null,
                 modifier = Modifier.size(350.dp)
             )
@@ -65,7 +65,10 @@ fun PuzzleGame(filePath: String = "src/main/resources/1.jpg") {
             }
         }
 
-        Button(onClick = { isTimerRunning = !isTimerRunning }) {
+        Button(
+            onClick = { isTimerRunning = !isTimerRunning },
+            colors = ButtonDefaults.buttonColors(Color(0xff708090))
+        ) {
             Text(if (isTimerRunning) "结束游戏" else "开始游戏")
         }
 
@@ -93,11 +96,12 @@ fun PuzzleGame(filePath: String = "src/main/resources/1.jpg") {
 @Composable
 fun GameAlertDialog(title: String, text: String, onConfirm: () -> Unit) {
     AlertDialog(
+        modifier = Modifier.width(280.dp).height(180.dp),
         onDismissRequest = {},
         title = { Text(title) },
         text = { Text(text) },
         confirmButton = {
-            Button(onClick = onConfirm) {
+            Button(onClick = onConfirm, colors = ButtonDefaults.buttonColors(Color(0xff708090))) {
                 Text("确定")
             }
         }
@@ -125,7 +129,8 @@ fun PuzzleBoard(image: BufferedImage, difficulty: Int, onPuzzleCompleted: () -> 
     val pieceHeight = image.height / piecesInRow
 
     val puzzleState by remember { mutableStateOf(PuzzleState(difficulty)) } //拼图片段
-    var selectedPieceIndex by remember { mutableStateOf(-1) } //拼图选择
+    var draggingPieceIndex by remember { mutableStateOf(-1) }
+    var dragOffset by remember { mutableStateOf(Offset.Zero) }
 
     // 创建拼图片段
     val pieces = List(difficulty) { index ->
@@ -134,34 +139,54 @@ fun PuzzleBoard(image: BufferedImage, difficulty: Int, onPuzzleCompleted: () -> 
         image.getSubimage(x, y, pieceWidth, pieceHeight).toBitmap()
     }
 
-    Box(modifier = Modifier.background(Color.LightGray)) {
+    Box() {
         Column {
-            //生成拼图
             for (y in 0 until piecesInRow) {
                 Row {
                     for (x in 0 until piecesInRow) {
-                        val currentIndex = y * piecesInRow + x // 计算全局索引
+                        val currentIndex = y * piecesInRow + x
                         val pieceIndex = puzzleState.getPieceIndexAt(x, y)
+
                         Image(
                             bitmap = pieces[pieceIndex].asComposeImageBitmap(),
                             contentDescription = null,
                             modifier = Modifier
-                                .size(90.dp, 90.dp)
-                                .background(if (selectedPieceIndex == currentIndex) Color.Gray else Color.Transparent)
-                                .clickable {
-                                    selectedPieceIndex = if (selectedPieceIndex == -1) {
-                                        currentIndex
-                                    } else {
-                                        puzzleState.swapPieces(selectedPieceIndex, currentIndex)
-                                        -1
-                                    }
+                                .offset {
+                                    if (draggingPieceIndex == currentIndex) {
+                                        IntOffset(
+                                            dragOffset.x.roundToInt(),
+                                            dragOffset.y.roundToInt()
+                                        )
+                                    } else IntOffset.Zero
                                 }
+                                .pointerInput(pieces[pieceIndex]) {
+                                    detectDragGestures(
+                                        onDragStart = { offset ->
+                                            draggingPieceIndex = currentIndex
+                                        },
+                                        onDrag = { change, dragAmount ->
+                                            dragOffset += dragAmount
+                                            change.consume()
+                                        },
+                                        onDragEnd = {
+                                            puzzleState.updatePiecePosition(
+                                                draggedIndex = draggingPieceIndex,
+                                                dragOffset = dragOffset,
+                                                pieceWidth = pieceWidth,
+                                                pieceHeight = pieceHeight,
+                                                piecesInRow = piecesInRow
+                                            )
+                                            draggingPieceIndex = -1
+                                            dragOffset = Offset.Zero
+                                        }
+                                    )
+                                }
+                                .background(if (draggingPieceIndex == currentIndex) Color.Gray else Color.Transparent)
                         )
                     }
                 }
             }
         }
-        //判断是否成功
         if (checkPuzzleComplete(puzzleState, difficulty)) {
             onPuzzleCompleted()
         }
@@ -202,12 +227,40 @@ class PuzzleState(difficulty: Int) {
         pieces[firstIndex] = pieces[secondIndex]
         pieces[secondIndex] = temp
     }
+
+    fun updatePiecePosition(draggedIndex: Int, dragOffset: Offset, pieceWidth: Int, pieceHeight: Int, piecesInRow: Int) {
+        val draggedX = draggedIndex % piecesInRow
+        val draggedY = draggedIndex / piecesInRow
+
+        val deltaX = dragOffset.x / pieceWidth
+        val deltaY = dragOffset.y / pieceHeight
+
+        val targetX = when {
+            deltaX > 0.05f -> (draggedX + 1).coerceIn(0, piecesInRow )
+            deltaX < -0.05f -> (draggedX - 1).coerceIn(0, piecesInRow )
+            else -> draggedX
+        }
+
+        val targetY = when {
+            deltaY > 0.05f -> (draggedY + 1).coerceIn(0, piecesInRow )
+            deltaY < -0.05f -> (draggedY - 1).coerceIn(0, piecesInRow )
+            else -> draggedY
+        }
+
+        val targetIndex = targetY * piecesInRow + targetX
+
+        // Swap only if the target index is different from the dragged index
+        if (targetIndex != draggedIndex && targetIndex in pieces.indices) {
+            swapPieces(draggedIndex, targetIndex)
+        }
+    }
 }
+
 
 //判断游戏是否成功
 fun checkPuzzleComplete(puzzleState: PuzzleState, difficulty: Int): Boolean {
     for (i in 0 until difficulty) {
-        println(puzzleState.getPieceIndexAt(i % difficulty, i / difficulty))
+        //println(puzzleState.getPieceIndexAt(i % difficulty, i / difficulty))
         if (puzzleState.getPieceIndexAt(i % difficulty, i / difficulty) != i) {
             return false
         }
