@@ -1,8 +1,9 @@
+package ui
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -13,15 +14,11 @@ import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import config.GameAlertDialog
+import config.saveGameResult
 import org.jetbrains.skiko.toBitmap
 import java.awt.image.BufferedImage
-import java.sql.Connection
-import java.sql.DriverManager
-import java.sql.PreparedStatement
 import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
 @Composable
@@ -82,23 +79,6 @@ fun PuzzleGame(
     }
 }
 
-@OptIn(ExperimentalMaterialApi::class)
-@Composable
-fun GameAlertDialog(title: String, text: String, onConfirm: () -> Unit) {
-    AlertDialog(
-        modifier = Modifier.width(280.dp).height(180.dp),
-        onDismissRequest = {},
-        title = { Text(title) },
-        text = { Text(text) },
-        confirmButton = {
-            Button(onClick = onConfirm, colors = ButtonDefaults.buttonColors(Color(0xff708090))) {
-                Text("确定")
-            }
-        }
-    )
-}
-
-
 //拼图游戏生成
 @Composable
 fun PuzzleBoard(image: BufferedImage, difficulty: Int, onPuzzleCompleted: () -> Unit) {
@@ -139,7 +119,7 @@ fun PuzzleBoard(image: BufferedImage, difficulty: Int, onPuzzleCompleted: () -> 
                                 }.width((300 / piecesInRow).dp).height((300 / piecesInRow).dp)
                                 .pointerInput(pieces[pieceIndex]) {
                                     detectDragGestures(
-                                        onDragStart = { offset ->
+                                        onDragStart = {
                                             draggingPieceIndex = currentIndex
                                         },
                                         onDrag = { change, dragAmount ->
@@ -180,7 +160,7 @@ class PuzzleState(difficulty: Int) {
         return pieces[y * piecesInRow + x]
     }
 
-    fun swapPieces(firstIndex: Int, secondIndex: Int) {
+    private fun swapPieces(firstIndex: Int, secondIndex: Int) {
         val temp = pieces[firstIndex]
         pieces[firstIndex] = pieces[secondIndex]
         pieces[secondIndex] = temp
@@ -218,24 +198,6 @@ class PuzzleState(difficulty: Int) {
         }
     }
 }
-
-fun saveGameResult(difficulty: String, time: Int, completionTime: LocalDateTime) {
-    val url = "jdbc:sqlite:game_data.db"
-    val sql = """
-        INSERT INTO game_results (difficulty, time, completion_time) 
-        VALUES (?, ?, ?)
-    """.trimIndent()
-
-    DriverManager.getConnection(url).use { conn ->
-        conn.prepareStatement(sql).use { pstmt ->
-            pstmt.setString(1, difficulty)
-            pstmt.setInt(2, time)
-            pstmt.setString(3, completionTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
-            pstmt.executeUpdate()
-        }
-    }
-}
-
 
 //判断游戏是否成功
 fun checkPuzzleComplete(puzzleState: PuzzleState, difficulty: Int): Boolean {
