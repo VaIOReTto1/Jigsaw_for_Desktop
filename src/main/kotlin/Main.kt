@@ -9,8 +9,8 @@ import androidx.compose.ui.window.rememberWindowState
 import config.*
 
 fun main() = application {
-    initializeDatabase()
-    //clearDatabase()
+    initializeDatabase() //新建数据库
+    //clearDatabase() //清楚数据库
     Window(
         onCloseRequest = ::exitApplication,
         title = "拼图游戏",

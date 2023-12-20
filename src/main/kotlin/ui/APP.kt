@@ -21,19 +21,21 @@ import javax.swing.filechooser.FileNameExtensionFilter
 
 @Composable
 fun App() {
-    var remainingTime by remember { mutableStateOf(60) }
+    var remainingTime by remember { mutableStateOf(60) } // 剩余时间
     var difficulty by remember { mutableStateOf("简单") } // 难度
-    var isGameRunning by remember { mutableStateOf(false) }
+    var isGameRunning by remember { mutableStateOf(false) } // 游戏是否正在运行
+    // 选择的图片
     var selectedImage by remember {
         mutableStateOf<BufferedImage>(
             ImageIO.read(File("D:\\Program\\jigsaw for desktop\\src\\main\\resources\\image\\1.jpg"))
         )
     }
-    var showRulesDialog by remember { mutableStateOf(false) }
+    var showRulesDialog by remember { mutableStateOf(false) } // 显示规则对话框
 
-    var showLeaderboardDialog by remember { mutableStateOf(false) }
-    val selectedLeaderboardDifficulty by remember { mutableStateOf("简单") }
+    var showLeaderboardDialog by remember { mutableStateOf(false) } // 显示排行榜对话框
+    val selectedLeaderboardDifficulty by remember { mutableStateOf("简单") } // 选择的排行榜难度
 
+    // 游戏计时逻辑
     LaunchedEffect(isGameRunning) {
         if (isGameRunning) {
             while (remainingTime > 0) {
@@ -57,10 +59,12 @@ fun App() {
         ) {
             Row {
                 Column {
+                    // 显示规则对话框
                     if (showRulesDialog) {
                         RulesDialog(onDismiss = { showRulesDialog = false })
                     }
 
+                    // 显示排行榜对话框
                     if (showLeaderboardDialog) {
                         LeaderboardDialog(selectedDifficulty = mutableStateOf(selectedLeaderboardDifficulty)) {
                             showLeaderboardDialog = false
@@ -99,10 +103,15 @@ fun App() {
                                     shape = RoundedCornerShape(50)
                                 ).width(90.dp).height(5.dp).padding(4.dp)
                         )
+
                         Spacer(modifier = Modifier.height(8.dp))
+
                         // 计时器显示
+
                         Text(text = if (isGameRunning) formatTime(remainingTime) else "01:00", fontSize = 25.sp)
+
                         Spacer(modifier = Modifier.height(8.dp))
+
                         InsetShadowBox(
                             modifier = Modifier
                                 .background(
@@ -112,6 +121,7 @@ fun App() {
                         )
                     }
 
+                    // 排行榜按钮
                     GameButton("排行榜") {
                         showLeaderboardDialog = true
                     }
@@ -149,6 +159,7 @@ fun App() {
                 } else {
                     Image(bitmap = selectedImage.toComposeImageBitmap(), contentDescription = "Selected Puzzle Image")
                 }
+
                 Spacer(modifier = Modifier.width(10.dp))
 
                 InsetShadowBox(
@@ -158,14 +169,19 @@ fun App() {
                             shape = RoundedCornerShape(50)
                         ).width(20.dp).fillMaxHeight()
                 )
+
                 Spacer(modifier = Modifier.width(10.dp))
+
                 Column {
+                    // 显示当前选择的图片
                     Image(
                         bitmap = selectedImage.toComposeImageBitmap(),
                         contentDescription = "Selected Puzzle Image",
                         modifier = Modifier.width(100.dp).height(100.dp)
                     )
+
                     Spacer(modifier = Modifier.height(10.dp))
+
                     // 难度选择按钮
                     DifficultyButtons(difficulty) { newDifficulty ->
                         difficulty = newDifficulty
@@ -177,12 +193,14 @@ fun App() {
     }
 }
 
+// 格式化时间
 fun formatTime(seconds: Int): String {
     val minutes = seconds / 60
     val remainingSeconds = seconds % 60
     return String.format("%02d:%02d", minutes, remainingSeconds)
 }
 
+// 选择图片
 fun openImageFileChooser(): String {
     val fileChooser = JFileChooser().apply {
         fileSelectionMode = JFileChooser.FILES_ONLY

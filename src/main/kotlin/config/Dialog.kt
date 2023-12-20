@@ -14,6 +14,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
+// 排行榜对话框
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun LeaderboardDialog(selectedDifficulty: MutableState<String>, onDismiss: () -> Unit) {
@@ -53,8 +54,8 @@ fun LeaderboardDialog(selectedDifficulty: MutableState<String>, onDismiss: () ->
                         elevation = 15.dp,
                         shape = RoundedCornerShape(8.dp),
                         spotColor = Color(0xff36261b)
-                    ), // Green shadow
-                shape = RoundedCornerShape(8.dp), // Rounded corners for the button
+                    ),
+                shape = RoundedCornerShape(8.dp),
                 elevation = ButtonDefaults.elevation(defaultElevation = 3.dp, pressedElevation = 6.dp)
             ) {
                 Text("关闭")
@@ -63,6 +64,7 @@ fun LeaderboardDialog(selectedDifficulty: MutableState<String>, onDismiss: () ->
     )
 }
 
+// 游戏规则对话框
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun RulesDialog(onDismiss: () -> Unit) {
@@ -91,8 +93,8 @@ fun RulesDialog(onDismiss: () -> Unit) {
                         elevation = 15.dp,
                         shape = RoundedCornerShape(8.dp),
                         spotColor = Color(0xff36261b)
-                    ), // Green shadow
-                shape = RoundedCornerShape(8.dp), // Rounded corners for the button
+                    ),
+                shape = RoundedCornerShape(8.dp),
                 elevation = ButtonDefaults.elevation(defaultElevation = 3.dp, pressedElevation = 6.dp)
             ) {
                 Text("关闭")
@@ -101,6 +103,7 @@ fun RulesDialog(onDismiss: () -> Unit) {
     )
 }
 
+// 游戏弹窗
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun GameAlertDialog(title: String, text: String, onConfirm: () -> Unit) {

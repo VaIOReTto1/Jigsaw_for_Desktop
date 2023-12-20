@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+// 难度选择按钮
 @Composable
 fun DifficultySelectionButtons(selectedDifficulty: MutableState<String>) {
     Row {
@@ -29,8 +30,8 @@ fun DifficultySelectionButtons(selectedDifficulty: MutableState<String>) {
                         elevation = 15.dp,
                         shape = RoundedCornerShape(8.dp),
                         spotColor = Color(0xff36261b)
-                    ), // Green shadow
-                shape = RoundedCornerShape(8.dp), // Rounded corners for the button
+                    ),
+                shape = RoundedCornerShape(8.dp),
                 elevation = ButtonDefaults.elevation(defaultElevation = 3.dp, pressedElevation = 6.dp)
             ) {
                 Text(difficulty)
@@ -40,6 +41,7 @@ fun DifficultySelectionButtons(selectedDifficulty: MutableState<String>) {
     }
 }
 
+// 难度按钮
 @Composable
 fun DifficultyButtons(selectedDifficulty: String, onDifficultySelected: (String) -> Unit) {
     Column {
@@ -56,6 +58,7 @@ fun DifficultyButtons(selectedDifficulty: String, onDifficultySelected: (String)
     }
 }
 
+// 游戏开始按钮
 @Composable
 fun GameButton(label: String, isSelected: Boolean = false, onClick: () -> Unit) {
     Button(
@@ -68,14 +71,15 @@ fun GameButton(label: String, isSelected: Boolean = false, onClick: () -> Unit) 
                 elevation = 15.dp,
                 shape = RoundedCornerShape(8.dp),
                 spotColor = Color(0xff36261b)
-            ), // Green shadow
-        shape = RoundedCornerShape(8.dp), // Rounded corners for the button
+            ),
+        shape = RoundedCornerShape(8.dp),
         elevation = ButtonDefaults.elevation(defaultElevation = 3.dp, pressedElevation = 6.dp)
     ) {
         Text(label, fontSize = 18.sp, color = Color.Black)
     }
 }
 
+// 解析难度和拼图
 fun parseDifficulty(difficulty: String): Int {
     return when (difficulty) {
         "简单" -> 9

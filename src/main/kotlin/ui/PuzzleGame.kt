@@ -82,13 +82,14 @@ fun PuzzleGame(
 //拼图游戏生成
 @Composable
 fun PuzzleBoard(image: BufferedImage, difficulty: Int, onPuzzleCompleted: () -> Unit) {
-    val piecesInRow = kotlin.math.sqrt(difficulty.toDouble()).toInt()
+    val piecesInRow = kotlin.math.sqrt(difficulty.toDouble()).toInt() //获取行数
+    //图片大小
     val pieceWidth = image.width / piecesInRow
     val pieceHeight = image.height / piecesInRow
 
-    val puzzleState by remember { mutableStateOf(PuzzleState(difficulty)) }
-    var draggingPieceIndex by remember { mutableStateOf(-1) }
-    var dragOffset by remember { mutableStateOf(Offset.Zero) }
+    val puzzleState by remember { mutableStateOf(PuzzleState(difficulty)) }  //图片状态
+    var draggingPieceIndex by remember { mutableStateOf(-1) } //拖动的图片索引
+    var dragOffset by remember { mutableStateOf(Offset.Zero) } //拖动偏移量
 
     // 创建拼图片段
     val pieces = List(difficulty) { index ->
@@ -102,14 +103,15 @@ fun PuzzleBoard(image: BufferedImage, difficulty: Int, onPuzzleCompleted: () -> 
             for (y in 0 until piecesInRow) {
                 Row {
                     for (x in 0 until piecesInRow) {
-                        val currentIndex = y * piecesInRow + x
-                        val pieceIndex = puzzleState.getPieceIndexAt(x, y)
+                        val currentIndex = y * piecesInRow + x //当前索引
+                        val pieceIndex = puzzleState.getPieceIndexAt(x, y) //图片索引
 
                         Image(
                             bitmap = pieces[pieceIndex].asComposeImageBitmap(),
                             contentDescription = null,
                             modifier = Modifier
                                 .offset {
+                                    //拖动图片
                                     if (draggingPieceIndex == currentIndex) {
                                         IntOffset(
                                             dragOffset.x.roundToInt(),
@@ -118,6 +120,7 @@ fun PuzzleBoard(image: BufferedImage, difficulty: Int, onPuzzleCompleted: () -> 
                                     } else IntOffset.Zero
                                 }.width((300 / piecesInRow).dp).height((300 / piecesInRow).dp)
                                 .pointerInput(pieces[pieceIndex]) {
+                                    //拖动图片
                                     detectDragGestures(
                                         onDragStart = {
                                             draggingPieceIndex = currentIndex
@@ -127,6 +130,7 @@ fun PuzzleBoard(image: BufferedImage, difficulty: Int, onPuzzleCompleted: () -> 
                                             change.consume()
                                         },
                                         onDragEnd = {
+                                            //更新图片位置
                                             puzzleState.updatePiecePosition(
                                                 draggedIndex = draggingPieceIndex,
                                                 dragOffset = dragOffset,
@@ -145,6 +149,7 @@ fun PuzzleBoard(image: BufferedImage, difficulty: Int, onPuzzleCompleted: () -> 
                 }
             }
         }
+        //判断游戏是否结束
         if (checkPuzzleComplete(puzzleState, difficulty)) {
             onPuzzleCompleted()
         }
@@ -153,19 +158,21 @@ fun PuzzleBoard(image: BufferedImage, difficulty: Int, onPuzzleCompleted: () -> 
 
 //分割图片
 class PuzzleState(difficulty: Int) {
-    private val piecesInRow = kotlin.math.sqrt(difficulty.toDouble()).toInt()
-    private val pieces = List(difficulty) { it }.shuffled().toMutableList()
+    private val piecesInRow = kotlin.math.sqrt(difficulty.toDouble()).toInt() //获取行数
+    private val pieces = List(difficulty) { it }.shuffled().toMutableList() //图片列表
 
     fun getPieceIndexAt(x: Int, y: Int): Int {
         return pieces[y * piecesInRow + x]
     }
 
+    //交换图片
     private fun swapPieces(firstIndex: Int, secondIndex: Int) {
         val temp = pieces[firstIndex]
         pieces[firstIndex] = pieces[secondIndex]
         pieces[secondIndex] = temp
     }
 
+    //更新图片位置
     fun updatePiecePosition(
         draggedIndex: Int,
         dragOffset: Offset,
@@ -173,18 +180,20 @@ class PuzzleState(difficulty: Int) {
         pieceHeight: Int,
         piecesInRow: Int
     ) {
-        val draggedX = draggedIndex % piecesInRow
-        val draggedY = draggedIndex / piecesInRow
+        val draggedX = draggedIndex % piecesInRow //拖动的图片x
+        val draggedY = draggedIndex / piecesInRow //拖动的图片y
 
-        val deltaX = dragOffset.x / pieceWidth
-        val deltaY = dragOffset.y / pieceHeight
+        val deltaX = dragOffset.x / pieceWidth //拖动偏移量
+        val deltaY = dragOffset.y / pieceHeight //拖动偏移量
 
+        //计算目标位置
         val targetX = when {
             deltaX > 0.05f -> (draggedX + 1).coerceIn(0, piecesInRow)
             deltaX < -0.05f -> (draggedX - 1).coerceIn(0, piecesInRow)
             else -> draggedX
         }
 
+        //计算目标位置
         val targetY = when {
             deltaY > 0.05f -> (draggedY + 1).coerceIn(0, piecesInRow)
             deltaY < -0.05f -> (draggedY - 1).coerceIn(0, piecesInRow)
