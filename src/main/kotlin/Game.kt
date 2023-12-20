@@ -17,13 +17,21 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.jetbrains.skiko.toBitmap
 import java.awt.image.BufferedImage
+import java.sql.Connection
+import java.sql.DriverManager
+import java.sql.PreparedStatement
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
 @Composable
-fun PuzzleGame(image: BufferedImage) {
-    var difficulty by remember { mutableStateOf(9) } //难度选择
-    var isTimerRunning by remember { mutableStateOf(false) } //计时开始
-    var remainingTime by remember { mutableStateOf(60) } //计时时间
+fun PuzzleGame(
+    image: BufferedImage,
+    difficulty: Int,
+    isGameRunning: Boolean,
+    remainingTime: String,
+    onPuzzleCompleted: () -> Unit
+) {
     var isPuzzleComplete by remember { mutableStateOf(false) } //游戏成功
     var isPuzzleEnd by remember { mutableStateOf(false) } //游戏失败
 
@@ -31,20 +39,8 @@ fun PuzzleGame(image: BufferedImage) {
         modifier = Modifier.width(350.dp).padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-
-        // 选择难度
-        Row {
-            DifficultyButton("普通", 9, difficulty) { difficulty = 9 }
-            Spacer(modifier = Modifier.width(16.dp))
-            DifficultyButton("中级", 16, difficulty) { difficulty = 16 }
-            Spacer(modifier = Modifier.width(16.dp))
-            DifficultyButton("高级", 25, difficulty) { difficulty = 25 }
-        }
-
-        Spacer(modifier = Modifier.height(32.dp))
-
         //拼图游戏
-        if (isTimerRunning) {
+        if (isGameRunning) {
             PuzzleBoard(image, difficulty, onPuzzleCompleted = { isPuzzleComplete = true })
         } else {
             //预览图片
@@ -55,29 +51,24 @@ fun PuzzleGame(image: BufferedImage) {
             )
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
-
-        //计时器
-        if (isTimerRunning) {
-            Timer(remainingTime) {
-                remainingTime = it
-                if (it == 0) isPuzzleEnd = true
-            }
-        }
-
-        Button(
-            onClick = { isTimerRunning = !isTimerRunning },
-            colors = ButtonDefaults.buttonColors(Color(0xff708090))
-        ) {
-            Text(if (isTimerRunning) "结束游戏" else "开始游戏")
-        }
-
         //游戏成功
         if (isPuzzleComplete) {
+            val difficultyText = when (difficulty) {
+                9 -> "简单"
+                16 -> "普通"
+                25 -> "高级"
+                else -> "苦难"
+            }
+
+            // 获取当前时间
+            val completionTime = LocalDateTime.now()
+
+            // 保存游戏结果
+            saveGameResult(difficultyText, 60 - remainingTime.toInt(), completionTime)
+
             GameAlertDialog(title = "恭喜！", text = "游戏胜利！") {
                 isPuzzleComplete = false
-                isTimerRunning = false
-                remainingTime = 60
+                onPuzzleCompleted()
             }
         }
 
@@ -85,8 +76,7 @@ fun PuzzleGame(image: BufferedImage) {
         if (isPuzzleEnd) {
             GameAlertDialog(title = "很遗憾", text = "挑战失败") {
                 isPuzzleEnd = false
-                isTimerRunning = false
-                remainingTime = 60
+                onPuzzleCompleted()
             }
         }
     }
@@ -108,18 +98,6 @@ fun GameAlertDialog(title: String, text: String, onConfirm: () -> Unit) {
     )
 }
 
-//难度选择按钮
-@Composable
-fun DifficultyButton(label: String, value: Int, current: Int, onClick: () -> Unit) {
-    Button(
-        onClick = onClick,
-        colors = ButtonDefaults.buttonColors(
-            backgroundColor = if (current == value) Color.LightGray else Color.Gray
-        )
-    ) {
-        Text(label)
-    }
-}
 
 //拼图游戏生成
 @Composable
@@ -128,7 +106,7 @@ fun PuzzleBoard(image: BufferedImage, difficulty: Int, onPuzzleCompleted: () -> 
     val pieceWidth = image.width / piecesInRow
     val pieceHeight = image.height / piecesInRow
 
-    val puzzleState by remember { mutableStateOf(PuzzleState(difficulty)) } //拼图片段
+    val puzzleState by remember { mutableStateOf(PuzzleState(difficulty)) }
     var draggingPieceIndex by remember { mutableStateOf(-1) }
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
 
@@ -139,7 +117,7 @@ fun PuzzleBoard(image: BufferedImage, difficulty: Int, onPuzzleCompleted: () -> 
         image.getSubimage(x, y, pieceWidth, pieceHeight).toBitmap()
     }
 
-    Box() {
+    Box(modifier = Modifier.background(Color.LightGray)) {
         Column {
             for (y in 0 until piecesInRow) {
                 Row {
@@ -158,7 +136,7 @@ fun PuzzleBoard(image: BufferedImage, difficulty: Int, onPuzzleCompleted: () -> 
                                             dragOffset.y.roundToInt()
                                         )
                                     } else IntOffset.Zero
-                                }
+                                }.width((300 / piecesInRow).dp).height((300 / piecesInRow).dp)
                                 .pointerInput(pieces[pieceIndex]) {
                                     detectDragGestures(
                                         onDragStart = { offset ->
@@ -193,26 +171,6 @@ fun PuzzleBoard(image: BufferedImage, difficulty: Int, onPuzzleCompleted: () -> 
     }
 }
 
-//计时器
-@Composable
-fun Timer(time: Int, onTimeUpdated: (Int) -> Unit) {
-    val coroutineScope = rememberCoroutineScope()
-    val countDownTime = produceState(initialValue = time, producer = {
-        while (value > 0) {
-            delay(1000)
-            value--
-        }
-    })
-    DisposableEffect(Unit) {
-        onDispose {
-            coroutineScope.launch {
-                onTimeUpdated(countDownTime.value)
-            }
-        }
-    }
-    Text(text = "剩余时间：${countDownTime.value}秒")
-}
-
 //分割图片
 class PuzzleState(difficulty: Int) {
     private val piecesInRow = kotlin.math.sqrt(difficulty.toDouble()).toInt()
@@ -228,7 +186,13 @@ class PuzzleState(difficulty: Int) {
         pieces[secondIndex] = temp
     }
 
-    fun updatePiecePosition(draggedIndex: Int, dragOffset: Offset, pieceWidth: Int, pieceHeight: Int, piecesInRow: Int) {
+    fun updatePiecePosition(
+        draggedIndex: Int,
+        dragOffset: Offset,
+        pieceWidth: Int,
+        pieceHeight: Int,
+        piecesInRow: Int
+    ) {
         val draggedX = draggedIndex % piecesInRow
         val draggedY = draggedIndex / piecesInRow
 
@@ -236,22 +200,38 @@ class PuzzleState(difficulty: Int) {
         val deltaY = dragOffset.y / pieceHeight
 
         val targetX = when {
-            deltaX > 0.05f -> (draggedX + 1).coerceIn(0, piecesInRow )
-            deltaX < -0.05f -> (draggedX - 1).coerceIn(0, piecesInRow )
+            deltaX > 0.05f -> (draggedX + 1).coerceIn(0, piecesInRow)
+            deltaX < -0.05f -> (draggedX - 1).coerceIn(0, piecesInRow)
             else -> draggedX
         }
 
         val targetY = when {
-            deltaY > 0.05f -> (draggedY + 1).coerceIn(0, piecesInRow )
-            deltaY < -0.05f -> (draggedY - 1).coerceIn(0, piecesInRow )
+            deltaY > 0.05f -> (draggedY + 1).coerceIn(0, piecesInRow)
+            deltaY < -0.05f -> (draggedY - 1).coerceIn(0, piecesInRow)
             else -> draggedY
         }
 
         val targetIndex = targetY * piecesInRow + targetX
 
-        // Swap only if the target index is different from the dragged index
         if (targetIndex != draggedIndex && targetIndex in pieces.indices) {
             swapPieces(draggedIndex, targetIndex)
+        }
+    }
+}
+
+fun saveGameResult(difficulty: String, time: Int, completionTime: LocalDateTime) {
+    val url = "jdbc:sqlite:game_data.db"
+    val sql = """
+        INSERT INTO game_results (difficulty, time, completion_time) 
+        VALUES (?, ?, ?)
+    """.trimIndent()
+
+    DriverManager.getConnection(url).use { conn ->
+        conn.prepareStatement(sql).use { pstmt ->
+            pstmt.setString(1, difficulty)
+            pstmt.setInt(2, time)
+            pstmt.setString(3, completionTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
+            pstmt.executeUpdate()
         }
     }
 }
@@ -260,7 +240,6 @@ class PuzzleState(difficulty: Int) {
 //判断游戏是否成功
 fun checkPuzzleComplete(puzzleState: PuzzleState, difficulty: Int): Boolean {
     for (i in 0 until difficulty) {
-        //println(puzzleState.getPieceIndexAt(i % difficulty, i / difficulty))
         if (puzzleState.getPieceIndexAt(i % difficulty, i / difficulty) != i) {
             return false
         }
